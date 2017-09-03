@@ -62,10 +62,9 @@ namespace parse {
       if (p && i.peek() == ')') {
         i.get();
         return p;
-      } else {
-        return logic::ValPtr();
       }
     }
+    break;
     case '<': {
       i.get();
       skipWhitespace(i);
@@ -81,10 +80,9 @@ namespace parse {
         if (body) {
           return logic::bundle(new logic::Lambda(argId, body));
         }
-      } else {
-        return logic::ValPtr();
       }
     }
+    break;
     case '[': {
       i.get();
       skipWhitespace(i);
@@ -96,10 +94,9 @@ namespace parse {
         if (logic::ValPtr body = parse(i, refIds)) {
           return logic::bundle(new logic::Constrain(constraint, body));
         }
-      } else {
-        return logic::ValPtr();
       }
     }
+    break;
     case '{': {
       i.get();
       skipWhitespace(i);
@@ -111,10 +108,9 @@ namespace parse {
         if (logic::ValPtr body = parse(i, refIds)) {
           return logic::bundle(new logic::Declare(with, body));
         }
-      } else {
-        return logic::ValPtr();
       }
     }
+    break;
     case '*':
       i.get();
       return logic::Wildcard::INSTANCE;
@@ -124,7 +120,7 @@ namespace parse {
     default:
       logic::SymId symId = parseSymId(i);
       if (symId.size() == 0) {
-        return logic::ValPtr();
+        break;
       }
       if (refIds.has(symId)) {
         return logic::bundle(new logic::Ref(symId));
@@ -132,6 +128,7 @@ namespace parse {
         return logic::bundle(new logic::Sym(symId));
       }
     }
+    return logic::ValPtr();
   }
 
   logic::ValPtr parse(std::istream& i) {
