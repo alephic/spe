@@ -43,7 +43,9 @@ int main(int argc, char** argv) {
         logic::ValPtr expr = parse::parse(lineStream, s);
         if (expr) {
           logic::ValSet evald = expr->eval(s, w);
-          for (logic::ValPtr val : evald) {
+          if (evald.size() == 0) {
+            std::cout << "!Empty set" << std::endl;
+          } else for (logic::ValPtr val : evald) {
             val->repr(std::cout);
             std::cout << std::endl;
           }

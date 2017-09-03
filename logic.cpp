@@ -536,9 +536,9 @@ namespace logic {
     }
     bool has_match = false;
     for (const ValPtr& constraintVal : constraintVals) {
-      for (std::pair<ValPtr, Scope> match : w.get_matches(constraintVal)) {
+      for (const std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal)) {
         has_match = true;
-        for (std::pair<SymId, ValSet> binding : match.second.data) {
+        for (const std::pair<SymId, ValSet>& binding : match.second.data) {
           if (refIds.count(binding.first)) {
             for (const ValPtr& boundVal : binding.second) {
               s2.data[binding.first].insert(boundVal);
