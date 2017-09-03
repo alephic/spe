@@ -62,7 +62,7 @@ namespace logic {
 
   class ValTree {
   private:
-    std::unordered_map<ValPtr, ValTree> branches;
+    std::unordered_map<ValPtr, std::shared_ptr<ValTree>> branches;
     std::unordered_map<ValPtr, ValPtr> leaves;
     void add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, ValPtr& p);
   public:

@@ -70,9 +70,9 @@ namespace logic {
       this->leaves[*it] = p;
     } else {
       if (!this->branches.count(*it)) {
-        this->branches[*it] = ValTree();
+        this->branches[*it] = std::shared_ptr<ValTree>(new ValTree());
       }
-      this->branches[*it].add_(it+1, end, p);
+      this->branches[*it]->add_(it+1, end, p);
     }
   }
   ValTree::ValTree() {}
@@ -90,10 +90,10 @@ namespace logic {
         }
       }
     } else {
-      for (const std::pair<const ValPtr, ValTree>& branch : this->branches) {
+      for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->branches) {
         Scope s = Scope(&b);
         if (branch.first->match(*it, s)) {
-          branch.second.get_matches(it+1, end, s, out);
+          branch.second->get_matches(it+1, end, s, out);
         }
       }
     }
