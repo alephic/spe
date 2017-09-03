@@ -112,19 +112,6 @@ namespace logic {
     std::size_t hash() const override;
   };
 
-  class WildcardTrace : public Value {
-  private:
-    const SymId ref_id;
-  public:
-    WildcardTrace(const SymId& ref_id);
-    void repr(std::ostream& o) const override;
-    ValSet subst(Scope& s) override;
-    bool match(const ValPtr& other, Scope& s) const override;
-    bool operator==(const Value& other) const override;
-    std::size_t hash() const override;
-    void collectRefIds(std::unordered_set<SymId>& s) const override;
-  };
-
   class Ref : public Value {
   private:
     const SymId ref_id;

@@ -157,45 +157,6 @@ namespace logic {
   }
 
   ValPtr Wildcard::INSTANCE(bundle(new Wildcard()));
-
-  WildcardTrace::WildcardTrace(const SymId& ref_id) : ref_id(ref_id) {}
-  void WildcardTrace::repr(std::ostream& o) const {
-    o << '*';
-  }
-  ValSet WildcardTrace::subst(Scope& s) {
-    if (s.has(this->ref_id)) {
-      return s.get(this->ref_id);
-    }
-    return ValSet({this->self.lock()}, 1);
-  }
-  bool WildcardTrace::match(const ValPtr& other, Scope& s) const {
-    if (s.has(this->ref_id)) {
-      const ValSet& vs = s.get(this->ref_id);
-      if (vs.count(other)) {
-        return true;
-      } else {
-        return false;
-      }
-    } else {
-      ValSet vs({other}, 1);
-      s.add(this->ref_id, vs);
-      return true;
-    }
-  }
-  bool WildcardTrace::operator==(const Value& other) const {
-    if (const WildcardTrace *s = dynamic_cast<const WildcardTrace *>(&other)) {
-      if (this->ref_id == s->ref_id) {
-        return true;
-      }
-    }
-    return false;
-  }
-  std::size_t WildcardTrace::hash() const {
-    return 53815931 ^ std::hash<std::string>{}(this->ref_id);
-  }
-  void WildcardTrace::collectRefIds(std::unordered_set<SymId>& s) const {
-    s.insert(this->ref_id);
-  }
   
   Ref::Ref(const SymId& ref_id) : ref_id(ref_id) {}
   void Ref::repr(std::ostream& o) const {
@@ -203,21 +164,16 @@ namespace logic {
   }
   ValSet Ref::subst(Scope& s) {
     if (s.has(this->ref_id)) {
-      ValSet& vs = s.get(this->ref_id);
-      if (vs.count(Wildcard::INSTANCE)) {
-        ValSet vs2(vs);
-        vs2.erase(Wildcard::INSTANCE);
-        vs2.insert(bundle(new WildcardTrace(this->ref_id)));
-        return vs2;
-      }
-      return vs;
+      return s.get(this->ref_id);;
     }
     return ValSet({this->self.lock()}, 1);
   }
   bool Ref::match(const ValPtr& other, Scope& s) const {
     if (s.has(this->ref_id)) {
       const ValSet& vs = s.get(this->ref_id);
-      if (vs.count(other)) {
+      if (vs.count(other) || vs.count(Wildcard::INSTANCE)) {
+        ValSet vs2({other}, 1);
+        s.add(this->ref_id, vs2);
         return true;
       } else {
         return false;
@@ -242,7 +198,7 @@ namespace logic {
   void Ref::collectRefIds(std::unordered_set<SymId>& s) const {
     s.insert(this->ref_id);
   }
-
+  
   Arbitrary::Arbitrary() {}
   void Arbitrary::repr(std::ostream& o) const {
     o << '?';
@@ -526,14 +482,17 @@ namespace logic {
     return res;
   }
   ValSet Constrain::eval(Scope& s, const World& w) {
-    ValSet constraintVals = this->constraint->eval(s, w);
     Scope s2 = Scope(&s);
+    Scope s3 = Scope(&s);
     std::unordered_set<SymId> refIds;
     this->constraint->collectRefIds(refIds);
     for (const SymId& refId : refIds) {
+      ValSet refSet({bundle(new Ref(refId))}, 1);
+      s2.add(refId, refSet);
       ValSet empty;
-      s2.add(refId, empty);
+      s3.add(refId, empty);
     }
+    ValSet constraintVals = this->constraint->eval(s2, w);
     bool has_match = false;
     for (const ValPtr& constraintVal : constraintVals) {
       for (const std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal)) {
@@ -541,14 +500,14 @@ namespace logic {
         for (const std::pair<SymId, ValSet>& binding : match.second.data) {
           if (refIds.count(binding.first)) {
             for (const ValPtr& boundVal : binding.second) {
-              s2.data[binding.first].insert(boundVal);
+              s3.data[binding.first].insert(boundVal);
             }
           }
         }
       }
     }
     if (has_match) {
-      return this->body->eval(s2, w);
+      return this->body->eval(s3, w);
     }
     return ValSet();
   }
