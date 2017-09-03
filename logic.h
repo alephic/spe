@@ -15,26 +15,18 @@ namespace logic {
 
   typedef std::shared_ptr<Value> ValPtr;
 
-}
-
-namespace std {
-  
-  template<> struct equal_to<logic::ValPtr> {
-    constexpr bool operator()(const logic::ValPtr& v1, const logic::ValPtr& v2) const;
+  struct ValPtrEqual {
+    bool operator()(const ValPtr& v1, const ValPtr& v2) const;
   };
 
-  template<> struct hash<logic::ValPtr> {
-    std::size_t operator()(logic::ValPtr const& v) const;
+  struct ValPtrHash {
+    std::size_t operator()(ValPtr const& v) const;
   };
-
-}
-
-namespace logic {
   
   typedef std::weak_ptr<Value> ValPtrWeak;
   
   typedef std::string SymId;
-  typedef std::unordered_set<ValPtr> ValSet;
+  typedef std::unordered_set<ValPtr, ValPtrHash, ValPtrEqual> ValSet;
 
   class Scope {
   protected:
@@ -62,8 +54,8 @@ namespace logic {
 
   class ValTree {
   private:
-    std::unordered_map<ValPtr, std::shared_ptr<ValTree>> branches;
-    std::unordered_map<ValPtr, ValPtr> leaves;
+    std::unordered_map<ValPtr, std::shared_ptr<ValTree>, ValPtrHash, ValPtrEqual> branches;
+    std::unordered_map<ValPtr, ValPtr, ValPtrHash, ValPtrEqual> leaves;
     void add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, ValPtr& p);
   public:
     ValTree();

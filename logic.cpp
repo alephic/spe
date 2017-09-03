@@ -1,18 +1,14 @@
 #include "logic.h"
 
-namespace std {
+namespace logic {
   
-  constexpr bool equal_to<logic::ValPtr>::operator()(const logic::ValPtr& v1, const logic::ValPtr& v2) const {
+  bool ValPtrEqual::operator()(const logic::ValPtr& v1, const logic::ValPtr& v2) const {
     return *v1 == *v2;
   }
 
-  std::size_t hash<logic::ValPtr>::operator()(logic::ValPtr const& v) const {
+  std::size_t ValPtrHash::operator()(logic::ValPtr const& v) const {
     return v->hash();
   }
-
-}
-
-namespace logic {
 
   ValSet EMPTY;
   Scope::Scope() : base{nullptr} {}
@@ -85,14 +81,14 @@ namespace logic {
     if (it+1 == end) {
       for (const std::pair<const ValPtr, ValPtr>& leaf : this->leaves) {
         Scope s = Scope(&b);
-        if (leaf.first->match(*it, s)) {
+        if ((*it)->match(leaf.first, s)) {
           out.push_back(std::pair<ValPtr, Scope>{leaf.second, s.squash()});
         }
       }
     } else {
       for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->branches) {
         Scope s = Scope(&b);
-        if (branch.first->match(*it, s)) {
+        if ((*it)->match(branch.first, s)) {
           branch.second->get_matches(it+1, end, s, out);
         }
       }
