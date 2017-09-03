@@ -95,22 +95,22 @@ namespace logic {
     }
   }
 
-  void World::get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) const {
+  void World::get_matches_(std::vector<ValPtr>& valFlat, Scope &s, std::vector<std::pair<ValPtr, Scope>>& out) const {
     if (this->base != nullptr) {
-      this->base->get_matches_(valFlat, out);
+      this->base->get_matches_(valFlat, s, out);
     }
-    this->data.get_matches(valFlat.begin(), valFlat.end(), Scope(), out);
+    this->data.get_matches(valFlat.begin(), valFlat.end(), s, out);
   }
   World::World() : base{nullptr} {}
   World::World(const World *base) : base{base} {}
   void World::add(ValPtr& p) {
     this->data.add(p);
   }
-  std::vector<std::pair<ValPtr, Scope>> World::get_matches(const ValPtr &p) const {
+  std::vector<std::pair<ValPtr, Scope>> World::get_matches(const ValPtr &p, Scope &s) const {
     std::vector<ValPtr> flat;
     p->flatten(flat);
     std::vector<std::pair<ValPtr, Scope>> v;
-    this->get_matches_(flat, v);
+    this->get_matches_(flat, s, v);
     return v;
   }
 
@@ -495,7 +495,7 @@ namespace logic {
     ValSet constraintVals = this->constraint->eval(s2, w);
     bool has_match = false;
     for (const ValPtr& constraintVal : constraintVals) {
-      for (const std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal)) {
+      for (const std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal, s)) {
         has_match = true;
         for (const std::pair<SymId, ValSet>& binding : match.second.data) {
           if (refIds.count(binding.first)) {
