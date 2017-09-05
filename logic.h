@@ -56,10 +56,10 @@ namespace logic {
   private:
     std::unordered_map<ValPtr, std::shared_ptr<ValTree>, ValPtrHash, ValPtrEqual> branches;
     std::unordered_map<ValPtr, ValPtr, ValPtrHash, ValPtrEqual> leaves;
-    void add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, ValPtr& p);
+    void add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, const ValPtr& p);
   public:
     ValTree();
-    void add(ValPtr& p);
+    void add(const ValPtr& p);
     void get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope b, std::vector<std::pair<ValPtr, Scope>>& out) const;
   };
 
@@ -71,7 +71,7 @@ namespace logic {
   public:
     World();
     World(const World *base);
-    void add(ValPtr& p);
+    void add(const ValPtr& p);
     std::vector<std::pair<ValPtr, Scope>> get_matches(const ValPtr &p, Scope &s) const;
   };
   

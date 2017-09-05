@@ -61,7 +61,7 @@ namespace logic {
     }
   }
 
-  void ValTree::add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, ValPtr& p) {
+  void ValTree::add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, const ValPtr& p) {
     if (it+1 == end) {
       this->leaves[*it] = p;
     } else {
@@ -72,7 +72,7 @@ namespace logic {
     }
   }
   ValTree::ValTree() {}
-  void ValTree::add(ValPtr& p) {
+  void ValTree::add(const ValPtr& p) {
     std::vector<ValPtr> v;
     p->flatten(v);
     this->add_(v.begin(), v.end(), p);
@@ -103,7 +103,7 @@ namespace logic {
   }
   World::World() : base{nullptr} {}
   World::World(const World *base) : base{base} {}
-  void World::add(ValPtr& p) {
+  void World::add(const ValPtr& p) {
     this->data.add(p);
   }
   std::vector<std::pair<ValPtr, Scope>> World::get_matches(const ValPtr &p, Scope &s) const {
@@ -421,12 +421,22 @@ namespace logic {
     return res;
   }
   ValSet Declare::eval(Scope& s, const World& w) {
-    ValSet withVals = this->with->eval(s, w);
     World w2 = World(&w);
-    for (ValPtr withVal : withVals) {
+    ValSet withVals = this->with->eval(s, w);
+    for (const ValPtr& withVal : withVals) {
       w2.add(withVal);
     }
-    return this->body->eval(s, w2);
+    const Declare *prev = this;
+    ValPtr curr = this->body;
+    while (const Declare *d = dynamic_cast<const Declare *>(curr.get())) {
+      withVals = d->with->eval(s, w);
+      for (const ValPtr& withVal : withVals) {
+        w2.add(withVal);
+      }
+      prev = d;
+      curr = d->body;
+    }
+    return prev->body->eval(s, w2);
   }
   bool Declare::operator==(const Value& other) const {
     if (const Declare *s = dynamic_cast<const Declare *>(&other)) {
