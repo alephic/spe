@@ -482,13 +482,12 @@ namespace logic {
     return res;
   }
   ValSet Constrain::eval(Scope& s, const World& w) {
-    Scope s2 = Scope(&s);
+    Shadow s2 = Shadow(&s);
     Scope s3 = Scope(&s);
     std::unordered_set<SymId> refIds;
     this->constraint->collectRefIds(refIds);
     for (const SymId& refId : refIds) {
-      ValSet refSet({bundle(new Ref(refId))}, 1);
-      s2.add(refId, refSet);
+      s2.shadow(refId);
       ValSet empty;
       s3.add(refId, empty);
     }

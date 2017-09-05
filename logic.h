@@ -37,7 +37,7 @@ namespace logic {
     Scope(Scope *base);
     void add(const SymId& k, ValSet& vs);
     ValSet& get(const SymId& k);
-    bool has(const SymId& k) const;
+    virtual bool has(const SymId& k) const;
     virtual void squash_(std::unordered_map<SymId, ValSet>& out);
     Scope squash();
   };
@@ -48,8 +48,8 @@ namespace logic {
   public:
     Shadow(Scope *base);
     void shadow(const SymId& k);
-    bool has(const SymId& k) const;
-    void squash_(std::unordered_map<SymId, ValSet>& out);
+    bool has(const SymId& k) const override;
+    void squash_(std::unordered_map<SymId, ValSet>& out) override;
   };
 
   class ValTree {
