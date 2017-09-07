@@ -458,7 +458,7 @@ namespace logic {
   }
   void Apply::flatten(std::vector<ValPtr>& v) const {
     this->pred->flatten(v);
-    this->arg->flatten(v);
+    v.push_back(this->arg);
   }
   void Apply::collectRefIds(std::unordered_set<SymId>& refIds) const {
     this->pred->collectRefIds(refIds);
