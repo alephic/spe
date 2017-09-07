@@ -589,13 +589,35 @@ namespace logic {
       std::vector<std::pair<SymId, ValSet>> bindings;
       std::vector<ValSet::iterator> binding_iters;
       for (auto it = refIds.begin(); it != refIds.end(); ++it) {
-        bindings.push_back(std::pair<SymId, ValSet>(*it, s.get(*it)));
-        binding_iters.push_back(bindings[bindings.size() - 1].second.begin());
-        if (binding_iters[binding_iters.size() - 1] == bindings[bindings.size() - 1].second.end()) {
-          s2.data[*it] = ValSet();
-        } else {
-          s2.data[*it] = ValSet({*binding_iters[binding_iters.size() - 1]}, 1);
+        if (s.has(*it)) {
+          bindings.push_back(std::pair<SymId, ValSet>(*it, s.get(*it)));
+          binding_iters.push_back(bindings[bindings.size() - 1].second.begin());
+          if (binding_iters[binding_iters.size() - 1] == bindings[bindings.size() - 1].second.end()) {
+            s2.data[*it] = ValSet();
+          } else {
+            s2.data[*it] = ValSet({*binding_iters[binding_iters.size() - 1]}, 1);
+          }
         }
+      }
+      if (bindings.size() == 0) {
+        for (const ValPtr& constraintVal : this->constraint->eval(s2, w)) {
+          bool scopelessMatch(false);
+          for (std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal)) {
+            if (match.second.data.size() > 0) {
+              Scope& s3 = match.second;
+              s3.base = &s2;
+              for (const ValPtr& bodyVal : this->body->eval(s3, w)) {
+                res.insert(bodyVal);
+              }
+            } else if (!scopelessMatch) {
+              scopelessMatch = true;
+              for (const ValPtr& bodyVal : this->body->eval(s2, w)) {
+                res.insert(bodyVal);
+              }
+            }
+          }
+        }
+        return res;
       }
       std::size_t last_idx = binding_iters.size() - 1;
       std::size_t curr_idx;
