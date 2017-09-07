@@ -591,7 +591,11 @@ namespace logic {
       for (auto it = refIds.begin(); it != refIds.end(); ++it) {
         bindings.push_back(std::pair<SymId, ValSet>(*it, s.get(*it)));
         binding_iters.push_back(bindings[bindings.size() - 1].second.begin());
-        s2.data[*it] = ValSet({*binding_iters[binding_iters.size() -1]}, 1);
+        if (binding_iters[binding_iters.size() - 1] == bindings[bindings.size() - 1].second.end()) {
+          s2.data[*it] = ValSet();
+        } else {
+          s2.data[*it] = ValSet({*binding_iters[binding_iters.size() - 1]}, 1);
+        }
       }
       std::size_t last_idx = binding_iters.size() - 1;
       std::size_t curr_idx;

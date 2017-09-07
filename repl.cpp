@@ -39,12 +39,27 @@ int main(int argc, char** argv) {
           }
           continue;
         }
+      } else if (lineStr.substr(0, 6) == ":check") {
+        lineStream.ignore(6);
+        logic::ValPtr expr = parse::parse(lineStream, s);
+        if (expr) {
+          bool holds(false);
+          logic::ValSet evald = expr->eval(s, w);
+          for (logic::ValPtr val : evald) {
+            if (w.get_matches(val).size() > 0) {
+              holds = true;
+              break;
+            }
+          }
+          std::cout << (holds ? "# Holds" : "# Does not hold") << std::endl;
+          continue;
+        }
       } else {
         logic::ValPtr expr = parse::parse(lineStream, s);
         if (expr) {
           logic::ValSet evald = expr->eval(s, w);
           if (evald.size() == 0) {
-            std::cout << "!Empty set" << std::endl;
+            std::cout << "# No result" << std::endl;
           } else for (logic::ValPtr val : evald) {
             val->repr(std::cout);
             std::cout << std::endl;
