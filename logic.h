@@ -63,19 +63,19 @@ namespace logic {
   public:
     ValTree();
     void add(const ValPtr& p);
-    void get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, const World& w, std::vector<std::pair<ValPtr, Scope>>& out) const;
+    void get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out);
   };
 
   class World {
   private:
     ValTree data;
-    const World *base;
-    void get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) const;
+    World *base;
+    void get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out);
   public:
     World();
-    World(const World *base);
+    World(World *base);
     void add(const ValPtr& p);
-    std::vector<std::pair<ValPtr, Scope>> get_matches(const ValPtr &p) const;
+    std::vector<std::pair<ValPtr, Scope>> get_matches(const ValPtr &p);
   };
   
   class Value {
@@ -85,7 +85,7 @@ namespace logic {
     virtual void repr_closed(std::ostream& o) const {this->repr(o);}
     virtual std::string repr_str() const;
     virtual ValSet subst(Scope&) = 0;
-    virtual ValSet eval(Scope& s, const World& w) {return this->subst(s);}
+    virtual ValSet eval(Scope& s, World& w) {return this->subst(s);}
     virtual bool match(const ValPtr& other, Scope&) const {return *this == *other;}
     virtual bool operator==(const Value&) const = 0;
     virtual std::size_t hash() const = 0;
@@ -135,7 +135,7 @@ namespace logic {
     Arbitrary();
     void repr(std::ostream& o) const override;
     ValSet subst(Scope& s) override;
-    ValSet eval(Scope& s, const World& w) override;
+    ValSet eval(Scope& s, World& w) override;
     bool operator==(const Value& other) const override;
     std::size_t hash() const override;
   };
@@ -179,7 +179,7 @@ namespace logic {
     void repr(std::ostream& o) const override;
     void repr_closed(std::ostream& o) const override;
     ValSet subst(Scope& s) override;
-    ValSet eval(Scope& s, const World& w) override;
+    ValSet eval(Scope& s, World& w) override;
     bool match(const ValPtr& other, Scope& s) const override;
     bool operator==(const Value& other) const override;
     std::size_t hash() const override;
@@ -197,7 +197,7 @@ namespace logic {
     void repr(std::ostream& o) const override;
     void repr_closed(std::ostream& o) const override;
     ValSet subst(Scope& s) override;
-    ValSet eval(Scope& s, const World& w) override;
+    ValSet eval(Scope& s, World& w) override;
     bool operator==(const Value& other) const override;
     std::size_t hash() const override;
     void collectRefIds(std::unordered_set<SymId>& s) const override;
@@ -213,7 +213,7 @@ namespace logic {
     void repr(std::ostream& o) const override;
     void repr_closed(std::ostream& o) const override;
     ValSet subst(Scope& s) override;
-    ValSet eval(Scope& s, const World& w) override;
+    ValSet eval(Scope& s, World& w) override;
     bool operator==(const Value& other) const override;
     std::size_t hash() const override;
     void collectRefIds(std::unordered_set<SymId>& s) const override;

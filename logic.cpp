@@ -118,18 +118,27 @@ namespace logic {
   Value& getVal(const ValPtr& vp) {
     return *vp;
   }
+  std::unordered_set<SymId> getRefIds(const ValPtr& vp) {
+    std::unordered_set<SymId> refIds;
+    vp->collectRefIds(refIds);
+    return refIds;
+  }
   void ValTree::add(const ValPtr& p) {
     std::vector<ValPtr> v;
     ValPtr p2 = stripLambdas(p);
     extractApply(p2)->flatten(v);
     this->add_(v.begin(), v.end(), p2);
   }
-  void ValTree::get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, const World& w, std::vector<std::pair<ValPtr, Scope>>& out) const {
+  void ValTree::get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out) {
     if (it+1 == end) {
-      for (const std::pair<const ValPtr, ValPtr>& leaf : this->leaves) {
-        Scope a2(&a);
-        if ((*it)->match(leaf.first, a2) && leaf.second->eval(b, w).size() > 0) {
-          out.push_back(std::pair<ValPtr, Scope>{leaf.second, a2.squash()});
+      if (this->leaves.count(*it) && this->leaves[*it]->eval(b, w).size() > 0) {
+        out.push_back(std::pair<ValPtr, Scope>{this->leaves[*it], a.squash()});
+      } else if (getRefIds(*it).size() > 0) {
+        for (const std::pair<const ValPtr, ValPtr>& leaf : this->leaves) {
+          Scope a2(&a);
+          if ((*it)->match(leaf.first, a2) && leaf.second->eval(b, w).size() > 0) {
+            out.push_back(std::pair<ValPtr, Scope>{leaf.second, a2.squash()});
+          }
         }
       }
       for (const std::pair<const ValPtr, ValPtr>& leaf : this->quantified_leaves) {
@@ -139,10 +148,14 @@ namespace logic {
         }
       }
     } else {
-      for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->branches) {
-        Scope a2(&a);
-        if ((*it)->match(branch.first, a2)) {
-          branch.second->get_matches(it+1, end, a2, b, w, out);
+      if (this->branches.count(*it)) {
+        this->branches[*it]->get_matches(it+1, end, a, b, w, out);
+      } else if (getRefIds(*it).size() > 0) {
+        for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->branches) {
+          Scope a2(&a);
+          if ((*it)->match(branch.first, a2)) {
+            branch.second->get_matches(it+1, end, a2, b, w, out);
+          }
         }
       }
       for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->quantified_branches) {
@@ -154,18 +167,18 @@ namespace logic {
     }
   }
 
-  void World::get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) const {
+  void World::get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) {
     if (this->base != nullptr) {
       this->base->get_matches_(valFlat, out);
     }
     this->data.get_matches(valFlat.begin(), valFlat.end(), Scope(), Scope(), *this, out);
   }
   World::World() : base{nullptr} {}
-  World::World(const World *base) : base{base} {}
+  World::World(World *base) : base{base} {}
   void World::add(const ValPtr& p) {
     this->data.add(p);
   }
-  std::vector<std::pair<ValPtr, Scope>> World::get_matches(const ValPtr &p) const {
+  std::vector<std::pair<ValPtr, Scope>> World::get_matches(const ValPtr &p) {
     std::vector<ValPtr> flat;
     p->flatten(flat);
     std::vector<std::pair<ValPtr, Scope>> v;
@@ -271,7 +284,7 @@ namespace logic {
   ValSet Arbitrary::subst(Scope& s) {
     return ValSet({this->self.lock()}, 1);
   }
-  ValSet Arbitrary::eval(Scope& s, const World& w) {
+  ValSet Arbitrary::eval(Scope& s, World& w) {
     return ValSet({bundle(new ArbitraryInstance())}, 1);
   }
   bool Arbitrary::operator==(const Value& other) const {
@@ -409,7 +422,7 @@ namespace logic {
     }
     return res;
   }
-  ValSet Apply::eval(Scope& s, const World& w) {
+  ValSet Apply::eval(Scope& s, World& w) {
     ValSet predVals = this->pred->eval(s, w);
     ValSet argVals = this->arg->eval(s, w);
     ValSet res(predVals.bucket_count()*argVals.bucket_count());
@@ -489,8 +502,8 @@ namespace logic {
     }
     return res;
   }
-  ValSet Declare::eval(Scope& s, const World& w) {
-    World w2 = World(&w);
+  ValSet Declare::eval(Scope& s, World& w) {
+    World w2(&w);
     ValSet withVals = this->with->eval(s, w);
     for (const ValPtr& withVal : withVals) {
       w2.add(withVal);
@@ -560,13 +573,14 @@ namespace logic {
     }
     return res;
   }
-  ValSet Constrain::eval(Scope& s, const World& w) {
+  ValSet Constrain::eval(Scope& s, World& w) {
     std::unordered_set<SymId> refIds;
     this->constraint->collectRefIds(refIds);
     if (refIds.size() == 0) {
-      ValSet constraintVals = this->constraint->eval(s, w);
-      if (constraintVals.size() > 0) {
-        return this->body->eval(s, w);
+      for (ValPtr constraintVal : this->constraint->eval(s, w)) {
+        if (w.get_matches(constraintVal).size() > 0) {
+          return this->body->eval(s, w);
+        }
       }
       return ValSet();
     } else {
