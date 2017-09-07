@@ -154,22 +154,22 @@ namespace logic {
     }
   }
 
-  void World::get_matches_(std::vector<ValPtr>& valFlat, Scope &s, std::vector<std::pair<ValPtr, Scope>>& out) const {
+  void World::get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) const {
     if (this->base != nullptr) {
-      this->base->get_matches_(valFlat, s, out);
+      this->base->get_matches_(valFlat, out);
     }
-    this->data.get_matches(valFlat.begin(), valFlat.end(), Scope(), s, *this, out);
+    this->data.get_matches(valFlat.begin(), valFlat.end(), Scope(), Scope(), *this, out);
   }
   World::World() : base{nullptr} {}
   World::World(const World *base) : base{base} {}
   void World::add(const ValPtr& p) {
     this->data.add(p);
   }
-  std::vector<std::pair<ValPtr, Scope>> World::get_matches(const ValPtr &p, Scope &s) const {
+  std::vector<std::pair<ValPtr, Scope>> World::get_matches(const ValPtr &p) const {
     std::vector<ValPtr> flat;
     p->flatten(flat);
     std::vector<std::pair<ValPtr, Scope>> v;
-    this->get_matches_(flat, s, v);
+    this->get_matches_(flat, v);
     return v;
   }
 
@@ -229,7 +229,9 @@ namespace logic {
   }
   ValSet Ref::subst(Scope& s) {
     if (s.has(this->ref_id)) {
-      return s.get(this->ref_id);;
+      ValSet& vs = s.get(this->ref_id);
+      if (!vs.count(Wildcard::INSTANCE))
+        return vs;
     }
     return ValSet({this->self.lock()}, 1);
   }
@@ -251,9 +253,7 @@ namespace logic {
   }
   bool Ref::operator==(const Value& other) const {
     if (const Ref *s = dynamic_cast<const Ref *>(&other)) {
-      if (this->ref_id == s->ref_id) {
-        return true;
-      }
+      return this->ref_id == s->ref_id;
     }
     return false;
   }
@@ -263,7 +263,7 @@ namespace logic {
   void Ref::collectRefIds(std::unordered_set<SymId>& s) const {
     s.insert(this->ref_id);
   }
-  
+
   Arbitrary::Arbitrary() {}
   void Arbitrary::repr(std::ostream& o) const {
     o << '?';
@@ -561,33 +561,61 @@ namespace logic {
     return res;
   }
   ValSet Constrain::eval(Scope& s, const World& w) {
-    Shadow s2 = Shadow(&s);
-    Scope s3 = Scope(&s);
     std::unordered_set<SymId> refIds;
     this->constraint->collectRefIds(refIds);
-    for (const SymId& refId : refIds) {
-      s2.shadow(refId);
-      ValSet empty;
-      s3.add(refId, empty);
-    }
-    ValSet constraintVals = this->constraint->eval(s2, w);
-    bool has_match = false;
-    for (const ValPtr& constraintVal : constraintVals) {
-      for (const std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal, s)) {
-        has_match = true;
-        for (const std::pair<SymId, ValSet>& binding : match.second.data) {
-          if (refIds.count(binding.first)) {
-            for (const ValPtr& boundVal : binding.second) {
-              s3.data[binding.first].insert(boundVal);
+    if (refIds.size() == 0) {
+      ValSet constraintVals = this->constraint->eval(s, w);
+      if (constraintVals.size() > 0) {
+        return this->body->eval(s, w);
+      }
+      return ValSet();
+    } else {
+      Scope s2 = Scope(&s);
+      ValSet res;
+      std::vector<std::pair<SymId, ValSet>> bindings;
+      std::vector<ValSet::iterator> binding_iters;
+      for (auto it = refIds.begin(); it != refIds.end(); ++it) {
+        bindings.push_back(std::pair<SymId, ValSet>(*it, s.get(*it)));
+        binding_iters.push_back(bindings[bindings.size() - 1].second.begin());
+        s2.data[*it] = ValSet({*binding_iters[binding_iters.size() -1]}, 1);
+      }
+      std::size_t last_idx = binding_iters.size() - 1;
+      std::size_t curr_idx;
+      while (binding_iters[0] != bindings[0].second.end()) {
+        for (const ValPtr& constraintVal : this->constraint->eval(s2, w)) {
+          bool scopelessMatch(false);
+          for (std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal)) {
+            if (match.second.data.size() > 0) {
+              Scope& s3 = match.second;
+              s3.base = &s2;
+              for (const ValPtr& bodyVal : this->body->eval(s3, w)) {
+                res.insert(bodyVal);
+              }
+            } else if (!scopelessMatch) {
+              scopelessMatch = true;
+              for (const ValPtr& bodyVal : this->body->eval(s2, w)) {
+                res.insert(bodyVal);
+              }
             }
           }
         }
+        ++binding_iters[last_idx];
+        if (binding_iters[last_idx] == bindings[last_idx].second.end()) {
+          curr_idx = last_idx;
+          while (binding_iters[curr_idx] == bindings[curr_idx].second.end() && curr_idx > 0) {
+            binding_iters[curr_idx] = bindings[curr_idx].second.begin();
+            s2.data[bindings[curr_idx].first].clear();
+            s2.data[bindings[curr_idx].first].insert(*binding_iters[curr_idx]);
+            --curr_idx;
+            ++binding_iters[curr_idx];
+          }
+        } else {
+          s2.data[bindings[last_idx].first].clear();
+          s2.data[bindings[last_idx].first].insert(*binding_iters[last_idx]);
+        }
       }
+      return res;
     }
-    if (has_match) {
-      return this->body->eval(s3, w);
-    }
-    return ValSet();
   }
   bool Constrain::operator==(const Value& other) const {
     if (const Constrain *s = dynamic_cast<const Constrain *>(&other)) {

@@ -29,9 +29,8 @@ namespace logic {
   typedef std::unordered_set<ValPtr, ValPtrHash, ValPtrEqual> ValSet;
 
   class Scope {
-  protected:
-    Scope *base;
   public:
+    Scope *base;
     std::unordered_map<SymId, ValSet> data;
     Scope();
     Scope(Scope *base);
@@ -71,12 +70,12 @@ namespace logic {
   private:
     ValTree data;
     const World *base;
-    void get_matches_(std::vector<ValPtr>& valFlat, Scope& s, std::vector<std::pair<ValPtr, Scope>>& out) const;
+    void get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) const;
   public:
     World();
     World(const World *base);
     void add(const ValPtr& p);
-    std::vector<std::pair<ValPtr, Scope>> get_matches(const ValPtr &p, Scope &s) const;
+    std::vector<std::pair<ValPtr, Scope>> get_matches(const ValPtr &p) const;
   };
   
   class Value {
