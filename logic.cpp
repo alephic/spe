@@ -1,4 +1,5 @@
 #include "logic.h"
+#include <sstream>
 
 namespace logic {
   
@@ -61,35 +62,93 @@ namespace logic {
     }
   }
 
+  ValTree::ValTree() {}
   void ValTree::add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, const ValPtr& p) {
-    if (it+1 == end) {
-      this->leaves[*it] = p;
-    } else {
-      if (!this->branches.count(*it)) {
-        this->branches[*it] = std::shared_ptr<ValTree>(new ValTree());
+    std::unordered_set<SymId> refIds;
+    (*it)->collectRefIds(refIds);
+    if (refIds.size() > 0) {
+      if (it+1 == end) {
+        this->quantified_leaves.push_back(std::pair<ValPtr, ValPtr>(*it, p));
+      } else {
+        std::shared_ptr<ValTree> vtp = std::shared_ptr<ValTree>(new ValTree());
+        vtp->add_(it+1, end, p);
+        this->quantified_branches.push_back(std::pair<ValPtr, std::shared_ptr<ValTree>>(*it, vtp));
       }
-      this->branches[*it]->add_(it+1, end, p);
+    } else {
+      if (it+1 == end) {
+        this->leaves[*it] = p;
+      } else {
+        if (!this->branches.count(*it)) {
+          this->branches[*it] = std::shared_ptr<ValTree>(new ValTree());
+        }
+        this->branches[*it]->add_(it+1, end, p);
+      }
     }
   }
-  ValTree::ValTree() {}
+  ValPtr stripLambdas(const ValPtr& p) {
+    if (const Lambda *l = dynamic_cast<const Lambda *>(p.get())) {
+      return stripLambdas(l->body);
+    } else if (const Declare *d = dynamic_cast<const Declare *>(p.get())) {
+      ValPtr newBody = stripLambdas(d->body);
+      if (newBody != d->body)
+        return bundle(new Declare(d->with, newBody));
+      else
+        return p;
+    } else if (const Constrain *c = dynamic_cast<const Constrain *>(p.get())) {
+      ValPtr newBody = stripLambdas(c->body);
+      if (newBody != c->body)
+        return bundle(new Constrain(c->constraint, newBody));
+      else
+        return p;
+    } else {
+      return p;
+    }
+  }
+  ValPtr extractApply(const ValPtr& p) {
+    if (const Lambda *l = dynamic_cast<const Lambda *>(p.get())) {
+      return extractApply(l->body);
+    } else if (const Declare *d = dynamic_cast<const Declare *>(p.get())) {
+      return extractApply(d->body);
+    } else if (const Constrain *c = dynamic_cast<const Constrain *>(p.get())) {
+      return extractApply(c->body);
+    } else {
+      return p;
+    }
+  }
+  Value& getVal(const ValPtr& vp) {
+    return *vp;
+  }
   void ValTree::add(const ValPtr& p) {
     std::vector<ValPtr> v;
-    p->flatten(v);
-    this->add_(v.begin(), v.end(), p);
+    ValPtr p2 = stripLambdas(p);
+    extractApply(p2)->flatten(v);
+    this->add_(v.begin(), v.end(), p2);
   }
-  void ValTree::get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope b, std::vector<std::pair<ValPtr, Scope>>& out) const {
+  void ValTree::get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, const World& w, std::vector<std::pair<ValPtr, Scope>>& out) const {
     if (it+1 == end) {
       for (const std::pair<const ValPtr, ValPtr>& leaf : this->leaves) {
-        Scope s = Scope(&b);
-        if ((*it)->match(leaf.first, s)) {
-          out.push_back(std::pair<ValPtr, Scope>{leaf.second, s.squash()});
+        Scope a2(&a);
+        if ((*it)->match(leaf.first, a2) && leaf.second->eval(b, w).size() > 0) {
+          out.push_back(std::pair<ValPtr, Scope>{leaf.second, a2.squash()});
+        }
+      }
+      for (const std::pair<const ValPtr, ValPtr>& leaf : this->quantified_leaves) {
+        Scope b2(&b);
+        if (leaf.first->match(*it, b2) && leaf.second->eval(b2, w).size() > 0) {
+          out.push_back(std::pair<ValPtr, Scope>{leaf.second, a.squash()});
         }
       }
     } else {
       for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->branches) {
-        Scope s = Scope(&b);
-        if ((*it)->match(branch.first, s)) {
-          branch.second->get_matches(it+1, end, s, out);
+        Scope a2(&a);
+        if ((*it)->match(branch.first, a2)) {
+          branch.second->get_matches(it+1, end, a2, b, w, out);
+        }
+      }
+      for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->quantified_branches) {
+        Scope b2(&b);
+        if (branch.first->match(*it, b2)) {
+          branch.second->get_matches(it+1, end, a, b2, w, out);
         }
       }
     }
@@ -99,7 +158,7 @@ namespace logic {
     if (this->base != nullptr) {
       this->base->get_matches_(valFlat, s, out);
     }
-    this->data.get_matches(valFlat.begin(), valFlat.end(), s, out);
+    this->data.get_matches(valFlat.begin(), valFlat.end(), Scope(), s, *this, out);
   }
   World::World() : base{nullptr} {}
   World::World(const World *base) : base{base} {}
@@ -118,6 +177,12 @@ namespace logic {
     ValPtr p(val);
     val->self = ValPtrWeak(p);
     return p;
+  }
+
+  std::string Value::repr_str() const {
+    std::stringstream sstr;
+    this->repr(sstr);
+    return sstr.str();
   }
 
   Sym::Sym(const SymId &sym_id) : sym_id(sym_id) {}
@@ -363,11 +428,15 @@ namespace logic {
     }
     return res;
   }
+  bool Apply::match(const ValPtr& other, Scope& s) const {
+    if (const Apply *a = dynamic_cast<const Apply *>(other.get())) {
+      return this->pred->match(a->pred, s) && this->arg->match(a->arg, s);
+    }
+    return false;
+  }
   bool Apply::operator==(const Value& other) const {
     if (const Apply *s = dynamic_cast<const Apply *>(&other)) {
-      if (*this->pred == *s->pred && *this->arg == *s->arg) {
-        return true;
-      }
+      return *this->pred == *s->pred && *this->arg == *s->arg;
     }
     return false;
   }

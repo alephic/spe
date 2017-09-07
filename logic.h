@@ -52,15 +52,19 @@ namespace logic {
     void squash_(std::unordered_map<SymId, ValSet>& out) override;
   };
 
+  class World;
+
   class ValTree {
   private:
     std::unordered_map<ValPtr, std::shared_ptr<ValTree>, ValPtrHash, ValPtrEqual> branches;
     std::unordered_map<ValPtr, ValPtr, ValPtrHash, ValPtrEqual> leaves;
+    std::vector<std::pair<ValPtr, std::shared_ptr<ValTree>>> quantified_branches;
+    std::vector<std::pair<ValPtr, ValPtr>> quantified_leaves;
     void add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, const ValPtr& p);
   public:
     ValTree();
     void add(const ValPtr& p);
-    void get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope b, std::vector<std::pair<ValPtr, Scope>>& out) const;
+    void get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, const World& w, std::vector<std::pair<ValPtr, Scope>>& out) const;
   };
 
   class World {
@@ -80,6 +84,7 @@ namespace logic {
     ValPtrWeak self;
     virtual void repr(std::ostream&) const = 0;
     virtual void repr_closed(std::ostream& o) const {this->repr(o);}
+    virtual std::string repr_str() const;
     virtual ValSet subst(Scope&) = 0;
     virtual ValSet eval(Scope& s, const World& w) {return this->subst(s);}
     virtual bool match(const ValPtr& other, Scope&) const {return *this == *other;}
@@ -167,15 +172,16 @@ namespace logic {
 
   class Apply: public Value {
   private:
-    const ValPtr pred;
-    const ValPtr arg;
     std::shared_ptr<std::unordered_set<SymId>> savedRefIds;
   public:
+    const ValPtr pred;
+    const ValPtr arg;
     Apply(const ValPtr& pred, const ValPtr& arg);
     void repr(std::ostream& o) const override;
     void repr_closed(std::ostream& o) const override;
     ValSet subst(Scope& s) override;
     ValSet eval(Scope& s, const World& w) override;
+    bool match(const ValPtr& other, Scope& s) const override;
     bool operator==(const Value& other) const override;
     std::size_t hash() const override;
     void flatten(std::vector<ValPtr>& v) const override;
@@ -184,10 +190,10 @@ namespace logic {
 
   class Declare: public Value {
   private:
-    const ValPtr with;
-    const ValPtr body;
     std::shared_ptr<std::unordered_set<SymId>> savedRefIds;
   public:
+    const ValPtr with;
+    const ValPtr body;
     Declare(const ValPtr& with, const ValPtr& body);
     void repr(std::ostream& o) const override;
     void repr_closed(std::ostream& o) const override;
@@ -200,10 +206,10 @@ namespace logic {
 
   class Constrain: public Value {
   private:
-    const ValPtr constraint;
-    const ValPtr body;
     std::shared_ptr<std::unordered_set<SymId>> savedRefIds;
   public:
+    const ValPtr constraint;
+    const ValPtr body;
     Constrain(const ValPtr& constraint, const ValPtr& body);
     void repr(std::ostream& o) const override;
     void repr_closed(std::ostream& o) const override;
