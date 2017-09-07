@@ -2,7 +2,7 @@ CC = clang++
 CFLAGS = -Wall -g -std=c++14
 
 repl: repl.o parse.o logic.o
-	$(CC) $(CFLAGS) repl.o parse.o logic.o -o bin/repl
+	$(CC) $(CFLAGS) -lreadline repl.o parse.o logic.o -o bin/repl
 
 repl.o: repl.cpp parse.h logic.h
 	$(CC) $(CFLAGS) -c repl.cpp -o repl.o

@@ -3,14 +3,19 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 int main(int argc, char** argv) {
   std::string lineStr;
   logic::Scope s;
   logic::World w;
   while (true) {
-    std::cout << '>' << ' ';
-    std::getline(std::cin, lineStr);
+    char *lineCstr = readline("> ");
+    if (lineCstr == nullptr) {
+      continue;
+    }
+    std::string lineStr(lineCstr);
     if (lineStr == ":q") {
       return 0;
     } else {
@@ -26,6 +31,7 @@ int main(int argc, char** argv) {
           if (expr) {
             logic::ValSet evald = expr->eval(sh, w);
             s.add(name, evald);
+            add_history(lineCstr);
             continue;
           }
         }
@@ -37,6 +43,7 @@ int main(int argc, char** argv) {
           for (logic::ValPtr val : evald) {
             w.add(val);
           }
+          add_history(lineCstr);
           continue;
         }
       } else if (lineStr.substr(0, 6) == ":check") {
@@ -52,6 +59,7 @@ int main(int argc, char** argv) {
             }
           }
           std::cout << (holds ? "# Holds" : "# Does not hold") << std::endl;
+          add_history(lineCstr);
           continue;
         }
       } else {
@@ -64,10 +72,12 @@ int main(int argc, char** argv) {
             val->repr(std::cout);
             std::cout << std::endl;
           }
+          add_history(lineCstr);
           continue;
         }
       }
     }
+    free(lineCstr);
     std::cout << "Syntax error" << std::endl;
   }
 }
