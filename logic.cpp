@@ -212,8 +212,8 @@ namespace logic {
     }
     this->data.get_matches(valFlat.begin(), valFlat.end(), Scope(), Scope(), *this, out);
   }
-  World::World() : base{nullptr}, stepsTaken{0} {}
-  World::World(World *base) : base{base}, stepsTaken{base ? base->stepsTaken : 0} {}
+  World::World() : base{nullptr}, numPrevSteps{0} {}
+  World::World(World *base) : base{base}, numPrevSteps{base ? base->getNumStepsTaken() : 0} {}
   void World::add(const ValPtr& p) {
     this->data.add(p);
   }
