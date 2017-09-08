@@ -168,14 +168,52 @@ namespace logic {
     }
   }
 
+  CheckStep::CheckStep(const ValPtr& goal, const ValPtr& chosenDecl) : goal(goal), chosenDecl(chosenDecl) {}
+  bool CheckStep::operator==(const CheckStep& other) const {
+    return (*other.goal) == (*this->goal) && other.chosenDecl.get() == this->chosenDecl.get();
+  }
+
+  std::size_t World::getNumStepsTaken() const {
+    return this->stepsTaken.size();
+  }
+  std::vector<CheckStep> *World::getRepeatedStepSeq_(std::vector<CheckStep>& seen, std::vector<CheckStep>& currMatch, std::size_t cutoff) const {
+    if (seen.size() >= cutoff) {
+      return nullptr;
+    }
+    for (std::size_t i = 1; i <= this->stepsTaken.size(); ++i) {
+      const CheckStep& curr = this->stepsTaken[this->stepsTaken.size() - i];
+      seen.push_back(curr);
+      if (seen.size() > 1) {
+        if (curr == seen[currMatch.size()]) {
+          currMatch.push_back(curr);
+          if (currMatch.size()*2 == seen.size()) {
+            return &currMatch;
+          }
+        } else {
+          currMatch.clear();
+        }
+      }
+    }
+    if (this->base != nullptr) {
+      return this->base->getRepeatedStepSeq_(seen, currMatch, cutoff);
+    } else {
+      return nullptr;
+    }
+  }
+  std::vector<CheckStep> *World::getRepeatedStepSeq() const {
+    std::vector<CheckStep> seen;
+    std::vector<CheckStep> currMatch;
+    return this->getRepeatedStepSeq_(seen, currMatch, this->getNumStepsTaken() / 2 + 1);
+  }
+
   void World::get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) {
     if (this->base != nullptr) {
       this->base->get_matches_(valFlat, out);
     }
     this->data.get_matches(valFlat.begin(), valFlat.end(), Scope(), Scope(), *this, out);
   }
-  World::World() : base{nullptr} {}
-  World::World(World *base) : base{base} {}
+  World::World() : base{nullptr}, stepsTaken{0} {}
+  World::World(World *base) : base{base}, stepsTaken{base ? base->stepsTaken : 0} {}
   void World::add(const ValPtr& p) {
     this->data.add(p);
   }
@@ -189,6 +227,9 @@ namespace logic {
       this->get_matches_(single, v);
     }
     return v;
+  }
+  bool World::isLegal(const CheckStep& next) const {
+    return true;
   }
 
   ValPtr bundle(Value *val) {

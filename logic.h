@@ -66,16 +66,32 @@ namespace logic {
     void get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out);
   };
 
+  class CheckStep {
+  public:
+    ValPtr goal;
+    ValPtr chosenDecl;
+    CheckStep(const ValPtr& goal, const ValPtr& chosenDecl);
+    bool operator==(const CheckStep& other) const;
+  };
+
   class World {
   private:
     ValTable data;
     World *base;
+    std::size_t numPrevSteps;
+    std::vector<CheckStep> stepsTaken;
+    std::size_t getNumStepsTaken() const;
     void get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out);
+    std::vector<CheckStep> *getRepeatedStepSeq() const;
+    std::vector<CheckStep> *getRepeatedStepSeq_(std::vector<CheckStep>& seen, std::vector<CheckStep>& currMatch, std::size_t cutoff) const;
   public:
     World();
     World(World *base);
     void add(const ValPtr& p);
     std::vector<std::pair<ValPtr, Scope>> get_matches(ValPtr &p);
+    bool isLegal(const CheckStep& next) const;
+    void pushStep(const CheckStep& step);
+    void popStep();
   };
   
   class Value {
