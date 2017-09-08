@@ -132,20 +132,40 @@ namespace logic {
   void ValTable::get_matches(const ValPtr& val, std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out) {
     std::size_t numRefs = getRefIds(*it).size();
     if (it+1 == end) {
-      if (numRefs == 0 && this->leaves.count(*it) && this->leaves[*it]->eval(b, w).size() > 0) {
-        out.push_back(std::pair<ValPtr, Scope>{this->leaves[*it], a.squash()});
-      } else if (numRefs > 0) {
+      bool exactMatched = false;
+      if (numRefs == 0 && this->leaves.count(*it)) {
+        CheckStep next = CheckStep(val, this->leaves[*it]);
+        if (w.isLegal(next)) {
+          w.pushStep(next);
+          if (this->leaves[*it]->eval(b, w).size() > 0) {
+            exactMatched = true;
+            out.push_back(std::pair<ValPtr, Scope>{this->leaves[*it], a.squash()});
+          }
+          w.popStep();
+        }
+      }
+      if (!exactMatched && numRefs > 0) {
         for (const std::pair<const ValPtr, ValPtr>& leaf : this->leaves) {
-          Scope a2(&a);
-          if ((*it)->match(leaf.first, a2) && leaf.second->eval(b, w).size() > 0) {
-            out.push_back(std::pair<ValPtr, Scope>{leaf.second, a2.squash()});
+          CheckStep next = CheckStep(val, leaf.second);
+          if (w.isLegal(next)) {
+            w.pushStep(next);
+            Scope a2(&a);
+            if ((*it)->match(leaf.first, a2) && leaf.second->eval(b, w).size() > 0) {
+              out.push_back(std::pair<ValPtr, Scope>{leaf.second, a2.squash()});
+            }
+            w.popStep();
           }
         }
       }
       for (const std::pair<const ValPtr, ValPtr>& leaf : this->quantified_leaves) {
-        Scope b2(&b);
-        if (leaf.first->match(*it, b2) && leaf.second->eval(b2, w).size() > 0) {
-          out.push_back(std::pair<ValPtr, Scope>{leaf.second, a.squash()});
+        CheckStep next = CheckStep(val, leaf.second);
+        if (w.isLegal(next)) {
+          w.pushStep(next);
+          Scope b2(&b);
+          if (leaf.first->match(*it, b2) && leaf.second->eval(b2, w).size() > 0) {
+            out.push_back(std::pair<ValPtr, Scope>{leaf.second, a.squash()});
+          }
+          w.popStep();
         }
       }
     } else {
