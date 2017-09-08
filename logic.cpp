@@ -129,7 +129,7 @@ namespace logic {
     extractApply(p2)->flatten(v);
     this->add_(v.begin(), v.end(), p2);
   }
-  void ValTable::get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out) {
+  void ValTable::get_matches(const ValPtr& val, std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out) {
     std::size_t numRefs = getRefIds(*it).size();
     if (it+1 == end) {
       if (numRefs == 0 && this->leaves.count(*it) && this->leaves[*it]->eval(b, w).size() > 0) {
@@ -150,19 +150,19 @@ namespace logic {
       }
     } else {
       if (numRefs == 0 && this->branches.count(*it)) {
-        this->branches[*it]->get_matches(it+1, end, a, b, w, out);
+        this->branches[*it]->get_matches(val, it+1, end, a, b, w, out);
       } else if (numRefs > 0) {
         for (const std::pair<const ValPtr, std::shared_ptr<ValTable>>& branch : this->branches) {
           Scope a2(&a);
           if ((*it)->match(branch.first, a2)) {
-            branch.second->get_matches(it+1, end, a2, b, w, out);
+            branch.second->get_matches(val, it+1, end, a2, b, w, out);
           }
         }
       }
       for (const std::pair<const ValPtr, std::shared_ptr<ValTable>>& branch : this->quantified_branches) {
         Scope b2(&b);
         if (branch.first->match(*it, b2)) {
-          branch.second->get_matches(it+1, end, a, b2, w, out);
+          branch.second->get_matches(val, it+1, end, a, b2, w, out);
         }
       }
     }
@@ -200,11 +200,11 @@ namespace logic {
       return false;
     }
   }
-  void World::get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) {
+  void World::get_matches_(const ValPtr& val, std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) {
     if (this->base != nullptr) {
-      this->base->get_matches_(valFlat, out);
+      this->base->get_matches_(val, valFlat, out);
     }
-    this->data.get_matches(valFlat.begin(), valFlat.end(), Scope(), Scope(), *this, out);
+    this->data.get_matches(val, valFlat.begin(), valFlat.end(), Scope(), Scope(), *this, out);
   }
   World::World() : base{nullptr}, numPrevSteps{0} {}
   World::World(World *base) : base{base}, numPrevSteps{base ? base->getNumStepsTaken() : 0} {}
@@ -215,10 +215,10 @@ namespace logic {
     std::vector<ValPtr> flat;
     p->flatten(flat);
     std::vector<std::pair<ValPtr, Scope>> v;
-    this->get_matches_(flat, v);
+    this->get_matches_(p, flat, v);
     if (flat.size() > 1) {
       std::vector<ValPtr> single({p});
-      this->get_matches_(single, v);
+      this->get_matches_(p, single, v);
     }
     return v;
   }

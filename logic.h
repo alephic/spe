@@ -63,7 +63,7 @@ namespace logic {
   public:
     ValTable();
     void add(const ValPtr& p);
-    void get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out);
+    void get_matches(const ValPtr& val, std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out);
   };
 
   class CheckStep {
@@ -81,7 +81,7 @@ namespace logic {
     std::size_t numPrevSteps;
     std::vector<CheckStep> stepsTaken;
     std::size_t getNumStepsTaken() const;
-    void get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out);
+    void get_matches_(const ValPtr& val, std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out);
     bool hasRepeatedStepSeq(std::vector<CheckStep>& seen, std::vector<CheckStep>& currMatch, std::size_t cutoff) const;
   public:
     World();
