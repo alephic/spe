@@ -231,6 +231,12 @@ namespace logic {
   bool World::isLegal(const CheckStep& next) const {
     return true;
   }
+  void World::pushStep(const CheckStep& step) {
+    this->stepsTaken.push_back(step);
+  }
+  void World::popStep() {
+    this->stepsTaken.pop_back();
+  }
 
   ValPtr bundle(Value *val) {
     ValPtr p(val);
