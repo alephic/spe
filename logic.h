@@ -75,7 +75,7 @@ namespace logic {
     World();
     World(World *base);
     void add(const ValPtr& p);
-    std::vector<std::pair<ValPtr, Scope>> get_matches(const ValPtr &p);
+    std::vector<std::pair<ValPtr, Scope>> get_matches(ValPtr &p);
   };
   
   class Value {

@@ -178,11 +178,13 @@ namespace logic {
   void World::add(const ValPtr& p) {
     this->data.add(p);
   }
-  std::vector<std::pair<ValPtr, Scope>> World::get_matches(const ValPtr &p) {
+  std::vector<std::pair<ValPtr, Scope>> World::get_matches(ValPtr &p) {
     std::vector<ValPtr> flat;
     p->flatten(flat);
     std::vector<std::pair<ValPtr, Scope>> v;
     this->get_matches_(flat, v);
+    std::vector<ValPtr> single({p});
+    this->get_matches_(single, v);
     return v;
   }
 
@@ -600,7 +602,7 @@ namespace logic {
         }
       }
       if (bindings.size() == 0) {
-        for (const ValPtr& constraintVal : this->constraint->eval(s2, w)) {
+        for (ValPtr constraintVal : this->constraint->eval(s2, w)) {
           bool scopelessMatch(false);
           for (std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal)) {
             if (match.second.data.size() > 0) {
@@ -622,11 +624,11 @@ namespace logic {
       std::size_t last_idx = binding_iters.size() - 1;
       std::size_t curr_idx;
       while (binding_iters[0] != bindings[0].second.end()) {
-        for (const ValPtr& constraintVal : this->constraint->eval(s2, w)) {
+        for (ValPtr constraintVal : this->constraint->eval(s2, w)) {
           bool scopelessMatch(false);
-          for (std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal)) {
+          for (const std::pair<ValPtr, Scope>& match : w.get_matches(constraintVal)) {
             if (match.second.data.size() > 0) {
-              Scope& s3 = match.second;
+              Scope s3 = match.second;
               s3.base = &s2;
               for (const ValPtr& bodyVal : this->body->eval(s3, w)) {
                 res.insert(bodyVal);
