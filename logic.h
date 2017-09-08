@@ -63,6 +63,7 @@ namespace logic {
   public:
     ValTable();
     void add(const ValPtr& p);
+    void get_matches_whole_val(const ValPtr& val, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out);
     void get_matches(const ValPtr& val, std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out);
   };
 

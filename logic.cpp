@@ -129,6 +129,36 @@ namespace logic {
     extractApply(p2)->flatten(v);
     this->add_(v.begin(), v.end(), p2);
   }
+  void ValTable::get_matches_whole_val(const ValPtr& val, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out) {
+    for (const std::pair<const ValPtr, ValPtr>& leaf : this->leaves) {
+      CheckStep next = CheckStep(val, leaf.second);
+      if (w.isLegal(next)) {
+        w.pushStep(next);
+        Scope a2(&a);
+        if (val->match(leaf.first, a2) && leaf.second->eval(b, w).size() > 0) {
+          out.push_back(std::pair<ValPtr, Scope>{leaf.second, a2.squash()});
+        }
+        w.popStep();
+      }
+    }
+    for (const std::pair<const ValPtr, ValPtr>& leaf : this->quantified_leaves) {
+      CheckStep next = CheckStep(val, leaf.second);
+      if (w.isLegal(next)) {
+        w.pushStep(next);
+        Scope b2(&b);
+        if (leaf.first->match(val, b2) && leaf.second->eval(b2, w).size() > 0) {
+          out.push_back(std::pair<ValPtr, Scope>{leaf.second, a.squash()});
+        }
+        w.popStep();
+      }
+    }
+    for (const std::pair<const ValPtr, std::shared_ptr<ValTable>>& branch : this->branches) {
+      branch.second->get_matches_whole_val(val, a, b, w, out);
+    }
+    for (const std::pair<const ValPtr, std::shared_ptr<ValTable>>& branch : this->quantified_branches) {
+      branch.second->get_matches_whole_val(val, a, b, w, out);
+    }
+  }
   void ValTable::get_matches(const ValPtr& val, std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out) {
     std::size_t numRefs = getRefIds(*it).size();
     if (it+1 == end) {
@@ -235,13 +265,21 @@ namespace logic {
   std::vector<std::pair<ValPtr, Scope>> World::get_matches(ValPtr &p) {
     std::vector<ValPtr> flat;
     p->flatten(flat);
-    std::vector<std::pair<ValPtr, Scope>> v;
-    this->get_matches_(p, flat, v);
+    std::vector<std::pair<ValPtr, Scope>> res;
+    for (World *curr = this; curr != nullptr; curr = curr->base) {
+      curr->data->get_matches(p, flat.begin(), flat.end(), Scope(), Scope(), *curr, res);
+    }
     if (flat.size() > 1) {
       std::vector<ValPtr> single({p});
-      this->get_matches_(p, single, v);
+      for (World *curr = this; curr != nullptr; curr = curr->base) {
+        curr->data->get_matches(p, single.begin(), single.end(), Scope(), Scope(), *curr, res);
+      }
+    } else if (p->getRefIds().size() > 0) {
+      for (World *curr = this; curr != nullptr; curr = curr->base) {
+        curr->data->get_matches_whole_val(p, Scope(), Scope(), *curr, res);
+      }
     }
-    return v;
+    return res;
   }
   bool World::isLegal(const CheckStep& next) const {
     std::vector<CheckStep> seen({next});
