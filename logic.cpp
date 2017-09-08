@@ -251,12 +251,6 @@ namespace logic {
       return false;
     }
   }
-  void World::get_matches_(const ValPtr& val, std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) {
-    if (this->base != nullptr) {
-      this->base->get_matches_(val, valFlat, out);
-    }
-    this->data.get_matches(val, valFlat.begin(), valFlat.end(), Scope(), Scope(), *this, out);
-  }
   World::World() : base{nullptr}, numPrevSteps{0} {}
   World::World(World *base) : base{base}, numPrevSteps{base ? base->getNumStepsTaken() : 0} {}
   void World::add(const ValPtr& p) {
@@ -267,16 +261,16 @@ namespace logic {
     p->flatten(flat);
     std::vector<std::pair<ValPtr, Scope>> res;
     for (World *curr = this; curr != nullptr; curr = curr->base) {
-      curr->data->get_matches(p, flat.begin(), flat.end(), Scope(), Scope(), *curr, res);
+      curr->data.get_matches(p, flat.begin(), flat.end(), Scope(), Scope(), *curr, res);
     }
     if (flat.size() > 1) {
       std::vector<ValPtr> single({p});
       for (World *curr = this; curr != nullptr; curr = curr->base) {
-        curr->data->get_matches(p, single.begin(), single.end(), Scope(), Scope(), *curr, res);
+        curr->data.get_matches(p, single.begin(), single.end(), Scope(), Scope(), *curr, res);
       }
-    } else if (p->getRefIds().size() > 0) {
+    } else if (getRefIds(p).size() > 0) {
       for (World *curr = this; curr != nullptr; curr = curr->base) {
-        curr->data->get_matches_whole_val(p, Scope(), Scope(), *curr, res);
+        curr->data.get_matches_whole_val(p, Scope(), Scope(), *curr, res);
       }
     }
     return res;
