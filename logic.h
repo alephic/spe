@@ -53,22 +53,22 @@ namespace logic {
 
   class World;
 
-  class ValTree {
+  class ValTable {
   private:
-    std::unordered_map<ValPtr, std::shared_ptr<ValTree>, ValPtrHash, ValPtrEqual> branches;
+    std::unordered_map<ValPtr, std::shared_ptr<ValTable>, ValPtrHash, ValPtrEqual> branches;
     std::unordered_map<ValPtr, ValPtr, ValPtrHash, ValPtrEqual> leaves;
-    std::vector<std::pair<ValPtr, std::shared_ptr<ValTree>>> quantified_branches;
+    std::vector<std::pair<ValPtr, std::shared_ptr<ValTable>>> quantified_branches;
     std::vector<std::pair<ValPtr, ValPtr>> quantified_leaves;
     void add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, const ValPtr& p);
   public:
-    ValTree();
+    ValTable();
     void add(const ValPtr& p);
     void get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out);
   };
 
   class World {
   private:
-    ValTree data;
+    ValTable data;
     World *base;
     void get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out);
   public:

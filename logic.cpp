@@ -62,24 +62,24 @@ namespace logic {
     }
   }
 
-  ValTree::ValTree() {}
-  void ValTree::add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, const ValPtr& p) {
+  ValTable::ValTable() {}
+  void ValTable::add_(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, const ValPtr& p) {
     std::unordered_set<SymId> refIds;
     (*it)->collectRefIds(refIds);
     if (refIds.size() > 0) {
       if (it+1 == end) {
         this->quantified_leaves.push_back(std::pair<ValPtr, ValPtr>(*it, p));
       } else {
-        std::shared_ptr<ValTree> vtp = std::shared_ptr<ValTree>(new ValTree());
+        std::shared_ptr<ValTable> vtp = std::shared_ptr<ValTable>(new ValTable());
         vtp->add_(it+1, end, p);
-        this->quantified_branches.push_back(std::pair<ValPtr, std::shared_ptr<ValTree>>(*it, vtp));
+        this->quantified_branches.push_back(std::pair<ValPtr, std::shared_ptr<ValTable>>(*it, vtp));
       }
     } else {
       if (it+1 == end) {
         this->leaves[*it] = p;
       } else {
         if (!this->branches.count(*it)) {
-          this->branches[*it] = std::shared_ptr<ValTree>(new ValTree());
+          this->branches[*it] = std::shared_ptr<ValTable>(new ValTable());
         }
         this->branches[*it]->add_(it+1, end, p);
       }
@@ -123,17 +123,18 @@ namespace logic {
     vp->collectRefIds(refIds);
     return refIds;
   }
-  void ValTree::add(const ValPtr& p) {
+  void ValTable::add(const ValPtr& p) {
     std::vector<ValPtr> v;
     ValPtr p2 = stripLambdas(p);
     extractApply(p2)->flatten(v);
     this->add_(v.begin(), v.end(), p2);
   }
-  void ValTree::get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out) {
+  void ValTable::get_matches(std::vector<ValPtr>::iterator it, std::vector<ValPtr>::iterator end, Scope a, Scope b, World& w, std::vector<std::pair<ValPtr, Scope>>& out) {
+    std::size_t numRefs = getRefIds(*it).size();
     if (it+1 == end) {
-      if (this->leaves.count(*it) && this->leaves[*it]->eval(b, w).size() > 0) {
+      if (numRefs == 0 && this->leaves.count(*it) && this->leaves[*it]->eval(b, w).size() > 0) {
         out.push_back(std::pair<ValPtr, Scope>{this->leaves[*it], a.squash()});
-      } else if (getRefIds(*it).size() > 0) {
+      } else if (numRefs > 0) {
         for (const std::pair<const ValPtr, ValPtr>& leaf : this->leaves) {
           Scope a2(&a);
           if ((*it)->match(leaf.first, a2) && leaf.second->eval(b, w).size() > 0) {
@@ -148,17 +149,17 @@ namespace logic {
         }
       }
     } else {
-      if (this->branches.count(*it)) {
+      if (numRefs == 0 && this->branches.count(*it)) {
         this->branches[*it]->get_matches(it+1, end, a, b, w, out);
-      } else if (getRefIds(*it).size() > 0) {
-        for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->branches) {
+      } else if (numRefs > 0) {
+        for (const std::pair<const ValPtr, std::shared_ptr<ValTable>>& branch : this->branches) {
           Scope a2(&a);
           if ((*it)->match(branch.first, a2)) {
             branch.second->get_matches(it+1, end, a2, b, w, out);
           }
         }
       }
-      for (const std::pair<const ValPtr, std::shared_ptr<ValTree>>& branch : this->quantified_branches) {
+      for (const std::pair<const ValPtr, std::shared_ptr<ValTable>>& branch : this->quantified_branches) {
         Scope b2(&b);
         if (branch.first->match(*it, b2)) {
           branch.second->get_matches(it+1, end, a, b2, w, out);
