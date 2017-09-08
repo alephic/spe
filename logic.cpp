@@ -199,15 +199,6 @@ namespace logic {
   }
   bool World::hasRepeatedStepSeq(std::vector<CheckStep>& seen, std::vector<CheckStep>& currMatch, std::size_t cutoff) const {
     if (seen.size() >= cutoff) {
-      std::cout << "cutoff reached, seen: ";
-      for (const CheckStep& step : seen) {
-        std::cout << '(';
-        step.goal->repr(std::cout);
-        std::cout << ", ";
-        step.chosenDecl->repr(std::cout);
-        std::cout << ") ";
-      }
-      std::cout << std::endl;
       return false;
     }
     for (std::size_t i = 1; i <= this->stepsTaken.size(); ++i) {
@@ -217,7 +208,6 @@ namespace logic {
         if (curr == seen[currMatch.size()]) {
           currMatch.push_back(curr);
           if (currMatch.size()*2 == seen.size()) {
-            std::cout << "found repeated step sequence" << std::endl;
             return true;
           }
         } else {
@@ -228,7 +218,6 @@ namespace logic {
     if (this->base != nullptr) {
       return this->base->hasRepeatedStepSeq(seen, currMatch, cutoff);
     } else {
-      std::cout << "no steps taken yet" << std::endl;
       return false;
     }
   }
