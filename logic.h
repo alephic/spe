@@ -82,8 +82,7 @@ namespace logic {
     std::vector<CheckStep> stepsTaken;
     std::size_t getNumStepsTaken() const;
     void get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out);
-    std::vector<CheckStep> *getRepeatedStepSeq() const;
-    std::vector<CheckStep> *getRepeatedStepSeq_(std::vector<CheckStep>& seen, std::vector<CheckStep>& currMatch, std::size_t cutoff) const;
+    bool hasRepeatedStepSeq(std::vector<CheckStep>& seen, std::vector<CheckStep>& currMatch, std::size_t cutoff) const;
   public:
     World();
     World(World *base);

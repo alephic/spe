@@ -176,9 +176,9 @@ namespace logic {
   std::size_t World::getNumStepsTaken() const {
     return this->stepsTaken.size();
   }
-  std::vector<CheckStep> *World::getRepeatedStepSeq_(std::vector<CheckStep>& seen, std::vector<CheckStep>& currMatch, std::size_t cutoff) const {
+  bool World::hasRepeatedStepSeq(std::vector<CheckStep>& seen, std::vector<CheckStep>& currMatch, std::size_t cutoff) const {
     if (seen.size() >= cutoff) {
-      return nullptr;
+      return false;
     }
     for (std::size_t i = 1; i <= this->stepsTaken.size(); ++i) {
       const CheckStep& curr = this->stepsTaken[this->stepsTaken.size() - i];
@@ -187,7 +187,7 @@ namespace logic {
         if (curr == seen[currMatch.size()]) {
           currMatch.push_back(curr);
           if (currMatch.size()*2 == seen.size()) {
-            return &currMatch;
+            return true;
           }
         } else {
           currMatch.clear();
@@ -195,17 +195,11 @@ namespace logic {
       }
     }
     if (this->base != nullptr) {
-      return this->base->getRepeatedStepSeq_(seen, currMatch, cutoff);
+      return this->base->hasRepeatedStepSeq(seen, currMatch, cutoff);
     } else {
-      return nullptr;
+      return false;
     }
   }
-  std::vector<CheckStep> *World::getRepeatedStepSeq() const {
-    std::vector<CheckStep> seen;
-    std::vector<CheckStep> currMatch;
-    return this->getRepeatedStepSeq_(seen, currMatch, this->getNumStepsTaken() / 2 + 1);
-  }
-
   void World::get_matches_(std::vector<ValPtr>& valFlat, std::vector<std::pair<ValPtr, Scope>>& out) {
     if (this->base != nullptr) {
       this->base->get_matches_(valFlat, out);
@@ -229,7 +223,9 @@ namespace logic {
     return v;
   }
   bool World::isLegal(const CheckStep& next) const {
-    return true;
+    std::vector<CheckStep> seen({next});
+    std::vector<CheckStep> match;
+    return !this->hasRepeatedStepSeq(seen, match, (this->getNumStepsTaken() + 1) / 2 + 1);
   }
   void World::pushStep(const CheckStep& step) {
     this->stepsTaken.push_back(step);
