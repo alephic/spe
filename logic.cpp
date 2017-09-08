@@ -183,8 +183,10 @@ namespace logic {
     p->flatten(flat);
     std::vector<std::pair<ValPtr, Scope>> v;
     this->get_matches_(flat, v);
-    std::vector<ValPtr> single({p});
-    this->get_matches_(single, v);
+    if (flat.size() > 1) {
+      std::vector<ValPtr> single({p});
+      this->get_matches_(single, v);
+    }
     return v;
   }
 
